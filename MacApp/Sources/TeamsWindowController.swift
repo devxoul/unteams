@@ -3,7 +3,7 @@ import WebKit
 
 final class TeamsWindowController: NSWindowController, NSWindowDelegate {
   private let notifier: Notifier
-  private var webView: WKWebView!
+  private var webView: TeamsWebView!
   private var popups: [NSWindow] = []
   private var titleObservation: NSKeyValueObservation?
   /// Once the page uses the Badging API, it owns the badge and the title is ignored.
@@ -13,17 +13,25 @@ final class TeamsWindowController: NSWindowController, NSWindowDelegate {
     self.notifier = notifier
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered, defer: false
     )
     window.title = "Unteams"
+    // Teams' own top bar stands in for the title bar; TitleBar.script makes room for the window buttons and
+    // makes the empty parts of that bar drag the window.
+    window.titleVisibility = .hidden
+    window.titlebarAppearsTransparent = true
     window.minSize = NSSize(width: 480, height: 400)
     window.center()
     window.setFrameAutosaveName("Main")
     super.init(window: window)
     window.delegate = self
 
-    let webView = WKWebView(frame: .zero, configuration: Teams.makeConfiguration(messageHandler: self))
+    let configuration = Teams.makeConfiguration(messageHandler: self)
+    configuration.userContentController.addUserScript(
+      WKUserScript(source: TitleBar.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+    )
+    let webView = TeamsWebView(frame: .zero, configuration: configuration)
     configure(webView)
     window.contentView = webView
     self.webView = webView
@@ -85,6 +93,10 @@ extension TeamsWindowController: WKScriptMessageHandler {
     case "badge":
       usesBadgingAPI = true
       notifier.setBadge((body["count"] as? NSNumber)?.intValue ?? 0)
+    case "drag":
+      if let event = webView.lastMouseDown { window?.performDrag(with: event) }
+    case "zoom":
+      window?.performZoom(nil)
     default:
       break
     }
