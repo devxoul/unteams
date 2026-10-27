@@ -47,19 +47,34 @@ enum TitleBar {
       return null;
     };
 
-    const update = () => {
+    let appliedColor = null;
+    let ticks = 0;
+
+    // Probing layout forces WebKit to restyle a page that is otherwise idle, so the color is re-read only every few
+    // seconds or when something that can change it happens, and written only when it actually changed.
+    const update = (force) => {
+      if (document.hidden) return;
       if (!bar || !bar.isConnected) {
         bar = findBar();
         if (!bar) return;
         bar.style.setProperty("padding-left", inset + "px", "important");
         bar.style.setProperty("box-sizing", "border-box", "important");
+        appliedColor = null;
+        force = true;
       }
+      if (!force && ++ticks % 5 !== 0) return;
       const color = barColor();
-      if (color) bar.style.setProperty("background-color", color, "important");
+      if (!color || color === appliedColor) return;
+      bar.style.setProperty("background-color", color, "important");
+      appliedColor = color;
     };
     // A timer rather than a MutationObserver: Teams mutates the DOM constantly while it boots, and probing layout
     // on every mutation stalls it on the splash screen.
     setInterval(update, 1000);
+    const refresh = () => update(true);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refresh);
 
     window.addEventListener("mousedown", (event) => {
       if (event.button !== 0 || event.clientY >= barHeight || event.target.closest(interactive)) return;
