@@ -59,6 +59,8 @@ enum Teams {
     configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
     #if os(iOS)
     configuration.allowsInlineMediaPlayback = true
+    // Teams turns away mobile browsers ("browser version isn't supported"), so present as desktop Safari.
+    configuration.defaultWebpagePreferences.preferredContentMode = .desktop
     #endif
     let controller = WKUserContentController()
     controller.addUserScript(WKUserScript(source: bridgeScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))

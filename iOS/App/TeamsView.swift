@@ -7,6 +7,7 @@ struct TeamsView: UIViewRepresentable {
   func makeUIView(context: Context) -> WKWebView {
     let webView = WKWebView(frame: .zero, configuration: Teams.makeConfiguration(messageHandler: context.coordinator))
     context.coordinator.configure(webView)
+    webView.configuration.userContentController.addUserScript(WKUserScript(source: desktopSpoof, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     webView.load(URLRequest(url: Teams.url))
     return webView
   }
@@ -17,6 +18,9 @@ struct TeamsView: UIViewRepresentable {
     func configure(_ webView: WKWebView) {
       webView.navigationDelegate = self
       webView.uiDelegate = self
+      // The user agent the Mac app sends; Teams turns away mobile browsers.
+      webView.customUserAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5.2 Safari/605.1.15"
       #if DEBUG
       webView.isInspectable = true
       #endif
@@ -73,6 +77,31 @@ struct TeamsView: UIViewRepresentable {
     }
   }
 }
+
+/// Microsoft sign-in (Conditional Access, error 53003) blocks a "Mac" that exposes touch and a phone-sized screen, so
+/// on sign-in pages only, those signals report what the Mac app does. Teams itself keeps real touch support.
+private let desktopSpoof = #"""
+(() => {
+  if (!/(^|\.)(microsoftonline\.com|live\.com|microsoftazuread-sso\.com)$/.test(location.hostname)) return;
+  const get = (target, name, value) => Object.defineProperty(target, name, { get: () => value, configurable: true });
+  get(Navigator.prototype, "maxTouchPoints", 0);
+  get(Navigator.prototype, "hardwareConcurrency", 8);
+  for (const target of [window, Window.prototype, Document.prototype, Element.prototype, HTMLElement.prototype])
+    for (const name of ["ontouchstart", "ontouchmove", "ontouchend", "ontouchcancel"]) delete target[name];
+  for (const name of ["TouchEvent", "Touch", "TouchList"]) delete window[name];
+  get(Screen.prototype, "width", 1512); get(Screen.prototype, "height", 982);
+  get(Screen.prototype, "availWidth", 1512); get(Screen.prototype, "availHeight", 856);
+  get(window, "devicePixelRatio", 2);
+  const desktop = { "pointer: fine": true, "pointer: coarse": false, "pointer: none": false, "hover: hover": true, "hover: none": false };
+  const matchMedia = window.matchMedia.bind(window);
+  window.matchMedia = (query) => {
+    const key = String(query).replace(/[()\s]/g, "").replace("any-", "").replace(":", ": ");
+    if (!(key in desktop)) return matchMedia(query);
+    return { matches: desktop[key], media: query, onchange: null, addListener() {}, removeListener() {},
+      addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } };
+  };
+})();
+"""#
 
 private extension UIView {
   func findViewController() -> UIViewController? {
