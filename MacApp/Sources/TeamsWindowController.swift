@@ -13,11 +13,10 @@ final class TeamsWindowController: NSWindowController, NSWindowDelegate {
     self.notifier = notifier
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered, defer: false
     )
     window.title = "Unteams"
-    window.titlebarAppearsTransparent = true
     window.minSize = NSSize(width: 480, height: 400)
     window.center()
     window.setFrameAutosaveName("Main")
