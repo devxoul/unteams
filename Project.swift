@@ -3,9 +3,10 @@ import ProjectDescription
 let teamID = "N2C267LBVY"
 let bundleIDPrefix = "app.unteams"
 
-// Debug gets its own bundle IDs so it installs side by side with Production.
+// Each configuration gets its own bundle IDs so Debug, Development and Production builds install side by side.
 let configurations: [Configuration] = [
   .debug(name: "Debug", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).debug"]),
+  .release(name: "Development", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).dev"]),
   .release(name: "Production", settings: ["BUNDLE_ID_PREFIX": .string(bundleIDPrefix)]),
 ]
 
