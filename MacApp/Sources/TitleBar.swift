@@ -23,6 +23,7 @@ enum TitleBar {
     const barHeight = 48;
     const post = (message) => window.webkit.messageHandlers.unteams.postMessage(message);
     let bar = null;
+    const interactive = "a, button, input, textarea, select, [role=button], [role=link], [role=menuitem], [role=tab], [role=combobox], [role=search], [contenteditable], [tabindex]";
 
     const findBar = () => {
       for (let el = document.elementFromPoint(inset / 2, barHeight / 2); el && el !== document.body; el = el.parentElement) {
@@ -35,7 +36,11 @@ enum TitleBar {
     // Teams paints the bar color on an inner element, so the padding takes the first opaque color under the bar's
     // content. Re-read every tick so it follows theme switches.
     const barColor = () => {
-      for (let el = document.elementFromPoint(inset + 8, barHeight / 2); el && el !== bar.parentElement; el = el.parentElement) {
+      // Start above any control under the probe point, so a hovered button's highlight isn't copied to the bar.
+      let start = document.elementFromPoint(inset + 8, barHeight / 2);
+      const control = start && start.closest(interactive);
+      if (control) start = control.parentElement;
+      for (let el = start; el && el !== bar; el = el.parentElement) {
         const color = getComputedStyle(el).backgroundColor;
         if (color && color !== "transparent" && !/rgba\(.*,\s*0\)$/.test(color)) return color;
       }
@@ -56,7 +61,6 @@ enum TitleBar {
     // on every mutation stalls it on the splash screen.
     setInterval(update, 1000);
 
-    const interactive = "a, button, input, textarea, select, [role=button], [role=link], [role=menuitem], [role=tab], [role=combobox], [role=search], [contenteditable], [tabindex]";
     window.addEventListener("mousedown", (event) => {
       if (event.button !== 0 || event.clientY >= barHeight || event.target.closest(interactive)) return;
       post({ type: event.detail === 2 ? "zoom" : "drag" });
