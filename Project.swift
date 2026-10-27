@@ -5,10 +5,14 @@ let bundleIDPrefix = "app.unteams"
 
 // Each configuration gets its own bundle IDs so Debug, Development and Production builds install side by side.
 let configurations: [Configuration] = [
-  .debug(name: "Debug", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).debug"]),
-  .release(name: "Development", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).dev"]),
-  .release(name: "Production", settings: ["BUNDLE_ID_PREFIX": .string(bundleIDPrefix)]),
+  .debug(name: "Debug", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).debug", "APP_ICON": "AppIcon-Debug"]),
+  .release(name: "Development", settings: ["BUNDLE_ID_PREFIX": "\(bundleIDPrefix).dev", "APP_ICON": "AppIcon-Dev"]),
+  .release(name: "Production", settings: ["BUNDLE_ID_PREFIX": .string(bundleIDPrefix), "APP_ICON": "AppIcon"]),
 ]
+
+// Each configuration picks its icon through APP_ICON, so Debug and Development builds are told apart at a glance.
+let appIcons: [ResourceFileElement] = ["Shared/AppIcon.icon", "Shared/AppIcon-Debug.icon", "Shared/AppIcon-Dev.icon"]
+let appIcon: SettingsDictionary = ["ASSETCATALOG_COMPILER_APPICON_NAME": "$(APP_ICON)"]
 
 let baseSettings: SettingsDictionary = [
   "DEVELOPMENT_TEAM": .string(teamID),
@@ -42,7 +46,9 @@ let project = Project(
         "UILaunchScreen": [:],
         "ITSAppUsesNonExemptEncryption": false,
       ]) { $1 }),
-      sources: ["iOS/App/**", "Shared/Sources/**"]
+      sources: ["iOS/App/**", "Shared/Sources/**"],
+      resources: .resources(appIcons),
+      settings: .settings(base: appIcon)
     ),
     .target(
       name: "UnteamsMac",
@@ -56,11 +62,12 @@ let project = Project(
         "LSApplicationCategoryType": "public.app-category.business",
       ]) { $1 }),
       sources: ["MacApp/Sources/**", "Shared/Sources/**"],
+      resources: .resources(appIcons),
       entitlements: "MacApp/App.entitlements",
-      settings: .settings(base: [
+      settings: .settings(base: appIcon.merging([
         "ENABLE_HARDENED_RUNTIME": "YES",
         "CODE_SIGN_IDENTITY[sdk=macosx*]": "Apple Development",
-      ])
+      ]) { $1 })
     ),
   ]
 )
