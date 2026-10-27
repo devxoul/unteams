@@ -43,6 +43,15 @@ enum Teams {
   static func makeConfiguration(messageHandler handler: WKScriptMessageHandler) -> WKWebViewConfiguration {
     let configuration = WKWebViewConfiguration()
     configuration.websiteDataStore = .default()
+    // Teams renews tokens in a hidden login.microsoftonline.com iframe. With WebKit's tracking prevention on, that
+    // iframe never sees the sign-in cookie, every renewal fails with interaction_required, and Teams asks to sign in
+    // again. There is no public switch, so this uses WebKit's private one (fine for a personal, non-App Store build).
+    let store = configuration.websiteDataStore
+    let selector = NSSelectorFromString("_setResourceLoadStatisticsEnabled:")
+    if let method = class_getInstanceMethod(type(of: store), selector) {
+      typealias SetEnabled = @convention(c) (AnyObject, Selector, Bool) -> Void
+      unsafeBitCast(method_getImplementation(method), to: SetEnabled.self)(store, selector, false)
+    }
     // Teams only supports browsers it recognizes; the Safari token makes WKWebView pass as Safari.
     configuration.applicationNameForUserAgent = "Version/18.0 Safari/605.1.15"
     configuration.mediaTypesRequiringUserActionForPlayback = []
