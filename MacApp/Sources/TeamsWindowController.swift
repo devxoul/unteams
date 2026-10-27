@@ -22,8 +22,7 @@ final class TeamsWindowController: NSWindowController, NSWindowDelegate {
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
     window.minSize = NSSize(width: 480, height: 400)
-    window.center()
-    window.setFrameAutosaveName("Main")
+    if !window.setFrameUsingName(Self.frameName) { window.center() }
     super.init(window: window)
     window.delegate = self
 
@@ -58,6 +57,16 @@ final class TeamsWindowController: NSWindowController, NSWindowDelegate {
     guard sender === window else { return true }
     sender.orderOut(nil)
     return false
+  }
+
+  func windowDidMove(_ notification: Notification) { saveFrame(notification) }
+  func windowDidResize(_ notification: Notification) { saveFrame(notification) }
+
+  private static let frameName = "Main"
+
+  private func saveFrame(_ notification: Notification) {
+    guard let window, notification.object as? NSWindow === window else { return }
+    window.saveFrame(usingName: Self.frameName)
   }
 
   func windowWillClose(_ notification: Notification) {
