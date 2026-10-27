@@ -97,9 +97,14 @@ extension TeamsWindowController: WKNavigationDelegate {
     _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
   ) {
-    guard let url = navigationAction.request.url, !Teams.isInternal(url) else { return decisionHandler(.allow) }
+    let url = navigationAction.request.url
+    switch Teams.route(for: url, linkActivated: navigationAction.navigationType == .linkActivated) {
+    case .app: return decisionHandler(.allow)
+    case .drop: return decisionHandler(.cancel)
+    case .browser: break
+    }
     // Links to other sites open in the default browser; a popup that only existed for one closes again.
-    NSWorkspace.shared.open(url)
+    if let url { NSWorkspace.shared.open(url) }
     decisionHandler(.cancel)
     if webView !== self.webView, webView.url == nil || webView.url?.absoluteString == "about:blank" {
       webView.window?.close()
@@ -115,8 +120,12 @@ extension TeamsWindowController: WKUIDelegate {
     _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
   ) -> WKWebView? {
-    if let url = navigationAction.request.url, !Teams.isInternal(url) {
-      NSWorkspace.shared.open(url)
+    let url = navigationAction.request.url
+    switch Teams.route(for: url, linkActivated: true) {
+    case .app: break
+    case .drop: return nil
+    case .browser:
+      if let url { NSWorkspace.shared.open(url) }
       return nil
     }
     let popupView = WKWebView(frame: .zero, configuration: configuration)

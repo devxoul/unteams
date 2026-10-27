@@ -24,6 +24,21 @@ enum Teams {
     return internalDomains.contains { host == $0 || host.hasSuffix(".\($0)") }
   }
 
+  enum Route { case app, browser, drop }
+
+  /// Teams pages and sign-in redirects (including a company's own SSO host) stay in the app, links the user follows
+  /// to other sites open in the browser, and other schemes are dropped: Teams uses msteams: links to hand off to the
+  /// desktop client, which is exactly what this app replaces.
+  static func route(for url: URL?, linkActivated: Bool) -> Route {
+    guard let url else { return .app }
+    switch url.scheme?.lowercased() {
+    case "http", "https": return linkActivated && !isInternal(url) ? .browser : .app
+    case "about", "blob", "data": return .app
+    case "mailto", "tel": return .browser
+    default: return .drop
+    }
+  }
+
   @MainActor
   static func makeConfiguration(messageHandler handler: WKScriptMessageHandler) -> WKWebViewConfiguration {
     let configuration = WKWebViewConfiguration()

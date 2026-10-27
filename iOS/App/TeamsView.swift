@@ -29,8 +29,13 @@ struct TeamsView: UIViewRepresentable {
       _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
       decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-      guard let url = navigationAction.request.url, !Teams.isInternal(url) else { return decisionHandler(.allow) }
-      UIApplication.shared.open(url)
+      let url = navigationAction.request.url
+      switch Teams.route(for: url, linkActivated: navigationAction.navigationType == .linkActivated) {
+      case .app: return decisionHandler(.allow)
+      case .drop: return decisionHandler(.cancel)
+      case .browser: break
+      }
+      if let url { UIApplication.shared.open(url) }
       decisionHandler(.cancel)
       if webView.url == nil { webView.findViewController()?.dismiss(animated: true) }
     }
@@ -42,8 +47,12 @@ struct TeamsView: UIViewRepresentable {
       _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
       for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-      if let url = navigationAction.request.url, !Teams.isInternal(url) {
-        UIApplication.shared.open(url)
+      let url = navigationAction.request.url
+      switch Teams.route(for: url, linkActivated: true) {
+      case .app: break
+      case .drop: return nil
+      case .browser:
+        if let url { UIApplication.shared.open(url) }
         return nil
       }
       let popup = WKWebView(frame: .zero, configuration: configuration)
