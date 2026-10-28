@@ -1,0 +1,115 @@
+ROOT = File.expand_path("..", __dir__)
+IOS_ROOT = File.join(ROOT, "apps/ios")
+DESKTOP_ROOT = File.join(ROOT, "apps/desktop")
+OUTPUT_DIR = File.join(ROOT, "build/fastlane")
+TEAM_ID = "N2C267LBVY"
+MATCH_GIT_URL = "https://github.com/devxoul/unteams-match.git"
+
+IOS_APP_ID = "app.unteams.ios"
+MAC_APP_ID = "app.unteams.mac"
+
+PROJECT_SWIFT = File.join(IOS_ROOT, "Project.swift")
+PACKAGE_JSON = File.join(DESKTOP_ROOT, "package.json")
+IOS_VERSION_PATTERN = /("CFBundleShortVersionString": ")([^"]+)(")/
+MAC_VERSION_PATTERN = /("version": ")([^"]+)(")/
+
+before_all do
+  # Temporary keychain + readonly match on CI runners.
+  setup_ci if is_ci
+end
+
+desc "Set the version in Project.swift and the desktop package.json and commit it"
+lane :bump do |options|
+  version = options[:version].to_s
+  UI.user_error!("Usage: fastlane bump version:X.Y.Z") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+
+  files = { PROJECT_SWIFT => IOS_VERSION_PATTERN, PACKAGE_JSON => MAC_VERSION_PATTERN }
+  files.each do |path, pattern|
+    content = File.read(path)
+    UI.user_error!("Couldn't find the version in #{path}") unless content.match?(pattern)
+    File.write(path, content.sub(pattern, "\\1#{version}\\3"))
+  end
+
+  if sh("git", "-C", ROOT, "status", "--porcelain", *files.keys).strip.empty?
+    UI.important("Already at #{version}, nothing to commit")
+    next
+  end
+  git_commit(path: files.keys, message: "Bump version to #{version}")
+end
+
+desc "Release both apps: the notarized Mac app in build/fastlane/, the iPhone app to TestFlight"
+lane :release do
+  api_key = app_store_connect_api_key
+  # Mac first: it has no public side effect, so most failures happen before the TestFlight upload.
+  build_mac(api_key)
+  build_ios(api_key)
+end
+
+platform :ios do
+  desc "Build the iPhone app and upload it to TestFlight"
+  lane :beta do
+    build_ios(app_store_connect_api_key)
+  end
+end
+
+platform :mac do
+  desc "Build the Electron app with Developer ID, notarize it, and copy the zip and dmg to build/fastlane/"
+  lane :release do
+    build_mac(app_store_connect_api_key)
+  end
+end
+
+def build_ios(api_key)
+  build_number = latest_testflight_build_number(api_key: api_key, app_identifier: IOS_APP_ID, initial_build_number: 0) + 1
+  ENV["TUIST_BUILD_NUMBER"] = build_number.to_s
+  sh("cd #{IOS_ROOT.shellescape} && tuist generate --no-open")
+
+  match(type: "appstore", platform: "ios", git_url: MATCH_GIT_URL, app_identifier: [IOS_APP_ID], api_key: api_key)
+  update_code_signing_settings(
+    path: File.join(IOS_ROOT, "Unteams.xcodeproj"),
+    targets: ["UnteamsiOS"],
+    use_automatic_signing: false,
+    team_id: TEAM_ID,
+    code_sign_identity: "Apple Distribution",
+    profile_name: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING][IOS_APP_ID]
+  )
+
+  build_app(
+    workspace: File.join(IOS_ROOT, "Unteams.xcworkspace"),
+    scheme: "UnteamsiOS",
+    configuration: "Production",
+    export_method: "app-store",
+    output_directory: OUTPUT_DIR
+  )
+
+  upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
+end
+
+def build_mac(api_key)
+  # Installs the Developer ID certificate into the keychain, where electron-builder finds it.
+  # Electron needs no provisioning profile, and only the Account Holder can create Developer ID ones.
+  match(type: "developer_id", platform: "macos", git_url: MATCH_GIT_URL, app_identifier: [MAC_APP_ID], api_key: api_key, skip_provisioning_profiles: true)
+
+  # electron-builder notarizes with the same App Store Connect API key, read from a .p8 file.
+  key_path = File.join(OUTPUT_DIR, "AuthKey.p8")
+  FileUtils.mkdir_p(OUTPUT_DIR)
+  File.write(key_path, api_key[:key])
+  begin
+    sh(
+      {
+        "APPLE_API_KEY" => key_path,
+        "APPLE_API_KEY_ID" => api_key[:key_id],
+        "APPLE_API_ISSUER" => api_key[:issuer_id],
+        "CSC_IDENTITY_AUTO_DISCOVERY" => "true"
+      },
+      "cd #{DESKTOP_ROOT.shellescape} && bun run release"
+    )
+  ensure
+    File.delete(key_path)
+  end
+
+  version = File.read(PACKAGE_JSON)[MAC_VERSION_PATTERN, 2]
+  %w[zip dmg].each do |ext|
+    FileUtils.cp(File.join(DESKTOP_ROOT, "release/Unteams-#{version}.#{ext}"), File.join(OUTPUT_DIR, "Unteams-#{version}.#{ext}"))
+  end
+end
