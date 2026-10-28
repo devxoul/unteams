@@ -6,9 +6,32 @@ DESKTOP_ROOT = File.join(ROOT, "apps/desktop")
 OUTPUT_DIR = File.join(ROOT, "build/fastlane")
 TEAM_ID = "N2C267LBVY"
 MATCH_GIT_URL = "https://github.com/devxoul/unteams-match.git"
+RELEASE_NOTES = File.join(__dir__, "release_notes.txt")
 
 IOS_APP_ID = "app.unteams.ios"
 MAC_APP_ID = "app.unteams.mac"
+
+EXTERNAL_TESTER_GROUP = "Beta Testers"
+BETA_APP_DESCRIPTION = <<~TEXT.strip
+  Unteams is a lightweight wrapper around the Microsoft Teams web app.
+
+  To test, sign in with a Microsoft work or school account, then check that chats, channels and calls load and work.
+TEXT
+
+# Beta App Review contact. The email is also the testers' feedback address.
+BETA_CONTACT = {
+  contact_first_name: "Suyeol",
+  contact_last_name: "Jeon",
+  contact_email: "devxoul@gmail.com",
+  contact_phone: ENV["APP_REVIEW_PHONE_NUMBER"].to_s.empty? ? nil : ENV["APP_REVIEW_PHONE_NUMBER"],
+  # Teams accounts belong to an organization's Microsoft 365 tenant, so there's no demo account to share.
+  demo_account_required: false,
+  notes: <<~TEXT.strip
+    Unteams wraps Microsoft Teams on the web (teams.cloud.microsoft). Teams accounts belong to an organization's Microsoft 365 tenant and can't be shared, so no demo account is provided.
+
+    Any Microsoft work or school account with Teams access can sign in. Without one, the app shows Microsoft's sign-in page, which is the expected first screen.
+  TEXT
+}.compact
 
 PROJECT_SWIFT = File.join(IOS_ROOT, "Project.swift")
 PACKAGE_JSON = File.join(DESKTOP_ROOT, "package.json")
@@ -86,7 +109,19 @@ def build_ios(api_key)
     output_directory: OUTPUT_DIR
   )
 
-  upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
+  changelog = File.exist?(RELEASE_NOTES) ? File.read(RELEASE_NOTES).strip : ""
+  upload_to_testflight(
+    api_key: api_key,
+    changelog: changelog.empty? ? nil : changelog,
+    # Beta App Review rejects external submissions without test information and a contact.
+    beta_app_description: BETA_APP_DESCRIPTION,
+    beta_app_feedback_email: BETA_CONTACT[:contact_email],
+    beta_app_review_info: BETA_CONTACT,
+    # External groups need a processed build, so wait for it and submit it for beta review.
+    distribute_external: true,
+    groups: [EXTERNAL_TESTER_GROUP],
+    notify_external_testers: true
+  )
 end
 
 def build_mac(api_key)
