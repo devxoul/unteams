@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "start": "tsc && electron .",
     "package": "tsc && electron-builder --mac --dir",
-    "release": "tsc && electron-builder --mac zip dmg --arm64 --publish never",
+    "release": "tsc && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true",
     "package:debug": "tsc && electron-builder --mac --dir -c.appId=app.unteams.debug.mac -c.productName='Unteams Debug' -c.mac.icon=../ios/Resources/AppIcon-Debug.icon -c.directories.output=release/debug"
   },
   "devDependencies": {
