@@ -1,3 +1,5 @@
+require "base64"
+
 ROOT = File.expand_path("..", __dir__)
 IOS_ROOT = File.join(ROOT, "apps/ios")
 DESKTOP_ROOT = File.join(ROOT, "apps/desktop")
@@ -95,7 +97,8 @@ def build_mac(api_key)
   # electron-builder notarizes with the same App Store Connect API key, read from a .p8 file.
   key_path = File.join(OUTPUT_DIR, "AuthKey.p8")
   FileUtils.mkdir_p(OUTPUT_DIR)
-  File.write(key_path, api_key[:key])
+  key = api_key[:is_key_content_base64] ? Base64.decode64(api_key[:key]) : api_key[:key]
+  File.write(key_path, key)
   begin
     sh(
       {
