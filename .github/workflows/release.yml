@@ -98,19 +98,48 @@ jobs:
       - name: Build and upload
         run: bundle exec fastlane release
 
+      # Kept so the publish job can be re-run without rebuilding or re-uploading to TestFlight.
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            build/fastlane/Unteams-${{ inputs.version }}.zip
+            build/fastlane/Unteams-${{ inputs.version }}.dmg
+          if-no-files-found: error
+
       - name: Push commit and tag
         run: |
           git push origin HEAD:main
           git tag "$VERSION"
           git push origin "refs/tags/$VERSION"
 
+  # Separate job so a failed publish can be finished with "Re-run failed jobs",
+  # which reuses the tag and the uploaded artifacts.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Download Mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac
+
+      - name: Verify tag
+        run: git ls-remote --exit-code --tags "https://github.com/$GH_REPO" "refs/tags/$VERSION"
+
       # Mac builds ship here only; iOS builds go to TestFlight only.
+      # Idempotent: a rerun after a partial release only uploads what is missing.
       - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$VERSION" \
-            "build/fastlane/Unteams-$VERSION.zip" \
-            "build/fastlane/Unteams-$VERSION.dmg" \
-            --title "$VERSION" \
-            --generate-notes
+          if ! gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release create "$VERSION" --verify-tag --title "$VERSION" --generate-notes
+          fi
+          gh release upload "$VERSION" "Unteams-$VERSION.zip" "Unteams-$VERSION.dmg" --clobber
