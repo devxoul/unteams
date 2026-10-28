@@ -15,6 +15,7 @@ Many organizations only let the official Teams apps in through device management
 ### Mac
 
 - A Dock app with its own window and menu bar.
+- No title bar: Teams' top bar takes its place. Drag its empty space to move the window, and double-click it to zoom.
 - Native notifications through Notification Center. Clicking one brings the window back.
 - An unread badge on the Dock icon.
 - Closing the window only hides it, so Teams keeps running and notifications keep arriving. Click the Dock icon to bring it back.
@@ -42,6 +43,7 @@ The Mac app used to be a WKWebView like the iOS one. In Low Power Mode, WebKit l
 
 - **Routing and badge** are in [`src/teams.ts`](apps/desktop/src/teams.ts): a list of Microsoft domains decides which URLs stay in the app, and the unread count comes from the page title (`(3) Chat | Microsoft Teams`) until the page uses the Badging API.
 - **Page bridge** is in [`src/preload.ts`](apps/desktop/src/preload.ts). Chromium shows web notifications natively; the bridge makes clicking one bring back the hidden window, sends `navigator.setAppBadge` to the Dock, and pads Teams' top bar so the window buttons don't cover it.
+- **Window dragging.** Marking the top bar as `-webkit-app-region: drag` would swallow clicks on Teams' div-based controls, so the preload script turns presses on the bar's empty space into `drag-start`/`drag-move` messages and [`src/main.ts`](apps/desktop/src/main.ts) moves the window.
 - **Browser check.** Teams turns away browsers it doesn't recognize, so the app removes Electron from its user agent and presents as Chrome.
 
 ### iOS ([`apps/ios`](apps/ios))
@@ -72,6 +74,7 @@ bun install
 cd apps/desktop
 bun run start     # build and run
 bun run package   # build Unteams.app into release/
+bun run package:debug   # build "Unteams Debug" into release/debug/, with its own app ID and icon
 ```
 
 ### iOS
