@@ -4,6 +4,11 @@
 
 <h1 align="center">Unteams</h1>
 
+<p align="center">
+  <a href="https://testflight.apple.com/join/ErDrUXW4"><img src="https://img.shields.io/badge/iOS-TestFlight-0D96F6?logo=apple&logoColor=white&labelColor=000" alt="iOS TestFlight"></a>
+  <a href="https://github.com/devxoul/unteams/releases/latest"><img src="https://img.shields.io/badge/macOS-Download-2EA44F?logo=apple&logoColor=white&labelColor=000" alt="macOS download"></a>
+</p>
+
 A personal Microsoft Teams wrapper for macOS and iOS. It loads [Teams on the web](https://teams.cloud.microsoft), which doesn't require the device registration that the official enterprise apps enforce, and adds what a browser tab lacks.
 
 ## Why
