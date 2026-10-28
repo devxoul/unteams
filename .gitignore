@@ -6,3 +6,6 @@ DerivedData/
 build/
 xcuserdata/
 .omo/
+node_modules/
+dist/
+release/

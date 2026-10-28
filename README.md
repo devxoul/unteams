@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Shared/AppIcon.icon/Assets/unteams.png" width="128" alt="Unteams icon">
+  <img src="apps/ios/Resources/AppIcon.icon/Assets/unteams.png" width="128" alt="Unteams icon">
 </p>
 
 <h1 align="center">Unteams</h1>
@@ -15,7 +15,7 @@ Many organizations only let the official Teams apps in through device management
 ### Mac
 
 - A Dock app with its own window and menu bar.
-- Native notifications through Notification Center. Clicking one opens the conversation.
+- Native notifications through Notification Center. Clicking one brings the window back.
 - An unread badge on the Dock icon.
 - Closing the window only hides it, so Teams keeps running and notifications keep arriving. Click the Dock icon to bring it back.
 
@@ -32,63 +32,92 @@ Many organizations only let the official Teams apps in through device management
 - `msteams:` links, which would hand off to the desktop client, are dropped.
 - Sign-in popups, camera, and microphone work, so calls work too.
 
+## Why Electron on the Mac
+
+The Mac app used to be a WKWebView like the iOS one. In Low Power Mode, WebKit limits every page's rendering to about 30 frames per second, and Teams becomes sluggish to hover, type and switch chats in. No WebKit setting or runtime hook gets around it, while Teams in Chromium stays smooth. So the Mac app runs on Electron. iOS has to use WebKit, so it stays a Swift app.
+
 ## How it works
 
-Everything Teams-specific is in [`Shared/Sources/Teams.swift`](Shared/Sources/Teams.swift).
+### Desktop ([`apps/desktop`](apps/desktop))
 
-- **Notifications and badge.** WKWebView has no Web Notification or Badging API, so a user script injected at document start replaces `Notification`, `ServiceWorkerRegistration.showNotification`, and `navigator.setAppBadge` with messages to the app. When the page doesn't use the Badging API, the badge comes from the unread count in the page title (`(3) Chat | Microsoft Teams`).
+- **Routing and badge** are in [`src/teams.ts`](apps/desktop/src/teams.ts): a list of Microsoft domains decides which URLs stay in the app, and the unread count comes from the page title (`(3) Chat | Microsoft Teams`) until the page uses the Badging API.
+- **Page bridge** is in [`src/preload.ts`](apps/desktop/src/preload.ts). Chromium shows web notifications natively; the bridge makes clicking one bring back the hidden window, sends `navigator.setAppBadge` to the Dock, and pads Teams' top bar so the window buttons don't cover it.
+- **Browser check.** Teams turns away browsers it doesn't recognize, so the app removes Electron from its user agent and presents as Chrome.
+
+### iOS ([`apps/ios`](apps/ios))
+
+Everything Teams-specific is in [`App/Teams.swift`](apps/ios/App/Teams.swift).
+
 - **Staying signed in.** Teams renews tokens in a hidden `login.microsoftonline.com` iframe. With WebKit's tracking prevention on, that iframe can't see the sign-in cookie, so every renewal fails and Teams asks you to sign in again. Unteams turns tracking prevention off through a private WebKit switch. That's fine for a personal build but rules out the App Store.
-- **Browser check.** Teams only supports browsers it recognizes, so the user agent includes a Safari version token.
-- **Routing.** A list of Microsoft domains decides which URLs stay in the app. Everything else the user clicks opens outside it.
+- **Browser check.** The user agent includes a Safari version token, and pages load in desktop mode.
 
 ## Requirements
 
-- macOS 15 or later (Mac app), iOS 18 or later (iPhone and iPad app)
-- Xcode 26
-- [Tuist](https://tuist.dev)
-- An Apple Developer team for code signing
+- macOS for the desktop app, iOS 18 or later for the iPhone and iPad app
+- [Bun](https://bun.sh)
+- Xcode 26 and [Tuist](https://tuist.dev) for iOS
+- An Apple Developer team for iOS code signing
 
 ## Build
 
-1. Set your own `teamID` (and optionally `bundleIDPrefix`) in [`Project.swift`](Project.swift).
-2. Generate the workspace:
+Install dependencies once from the repository root:
+
+```sh
+bun install
+```
+
+### Desktop
+
+```sh
+cd apps/desktop
+bun run start     # build and run
+bun run package   # build Unteams.app into release/
+```
+
+### iOS
+
+1. Set your own `teamID` (and optionally `bundleIDPrefix`) in [`apps/ios/Project.swift`](apps/ios/Project.swift).
+2. Generate the workspace, open it, and run the `UnteamsiOS` scheme:
 
    ```sh
-   tuist generate  # creates Unteams.xcworkspace
+   cd apps/ios
+   tuist generate
    ```
 
-3. Open `Unteams.xcworkspace`, pick a scheme, and run.
+Each iOS configuration has its own bundle ID and icon, so all three can be installed side by side and told apart.
 
-| Scheme | Product |
-|---|---|
-| `UnteamsMac` | Mac app |
-| `UnteamsiOS` | iPhone and iPad app |
+| Configuration | Bundle ID prefix | Icon            |
+| ------------- | ---------------- | --------------- |
+| Debug         | `<prefix>.debug` | `AppIcon-Debug` |
+| Development   | `<prefix>.dev`   | `AppIcon-Dev`   |
+| Production    | `<prefix>`       | `AppIcon`       |
 
-### Configurations
+### Checks
 
-Each configuration has its own bundle ID and icon, so all three can be installed side by side and told apart.
+From the repository root:
 
-| Configuration | Bundle ID prefix | Icon |
-|---|---|---|
-| Debug | `<prefix>.debug` | `AppIcon-Debug` |
-| Development | `<prefix>.dev` | `AppIcon-Dev` |
-| Production | `<prefix>` | `AppIcon` |
-
-Debug builds make the web view inspectable, so Safari's Web Inspector (Develop menu) can attach to it.
+```sh
+bun run typecheck   # TypeScript 7
+bun run lint        # oxlint
+bun run format      # oxfmt
+```
 
 ## Project layout
 
 ```
-Project.swift          Tuist project: targets, bundle IDs, signing, configurations
-Shared/Sources/        Code compiled into both apps (Teams URL, domains, bridge script)
-Shared/AppIcon*.icon   App icons for each configuration
-MacApp/Sources/        Mac app: window, menu, title bar, notifications
-iOS/App/               iOS app: SwiftUI entry point and web view
+apps/desktop/          Electron app for macOS (TypeScript)
+  src/main.ts          Window, menu, Dock badge, link routing, permissions
+  src/preload.ts       Bridge script injected into the Teams page
+  src/teams.ts         Teams URL, Microsoft domains, routing, unread count
+apps/ios/              iOS app (Swift, Tuist)
+  Project.swift        Tuist project: target, bundle IDs, signing, configurations
+  App/                 SwiftUI entry point, web view, Teams configuration
+  Resources/           App icons for each configuration (also used by the desktop app)
 ```
 
 ## Limitations
 
 - It's the Teams web app, so it has the web app's features and nothing more.
 - No notifications on iOS (see above).
-- Uses private WebKit API, so it isn't meant for the App Store.
+- The iOS app uses private WebKit API, so it isn't meant for the App Store.
 - Not affiliated with Microsoft.

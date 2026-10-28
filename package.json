@@ -1,0 +1,18 @@
+{
+  "name": "unteams",
+  "private": true,
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "scripts": {
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "typecheck": "bun run --filter '*' typecheck"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.75.0",
+    "oxlint": "^1.90.0",
+    "typescript": "^7.0.2"
+  }
+}

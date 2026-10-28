@@ -1,17 +1,25 @@
 # unteams
 
-Personal Microsoft Teams web wrapper for macOS and iOS, built with Tuist. Layout follows devxoul/nothering.
+Personal Microsoft Teams web wrapper. Bun workspace monorepo:
+
+- `apps/desktop`: macOS app on Electron, TypeScript 7.
+- `apps/ios`: iOS app on WKWebView, Swift, built with Tuist.
 
 ## Build
 
 ```bash
-tuist generate --no-open   # creates Unteams.xcworkspace
+bun install                                  # from the repo root
+bun run typecheck && bun run lint            # TypeScript 7 (tsc), oxlint
+bun run format                               # oxfmt
+cd apps/desktop && bun run start             # build and run the desktop app
+cd apps/desktop && bun run package           # Unteams.app in apps/desktop/release/
+cd apps/ios && tuist generate --no-open      # creates Unteams.xcworkspace (scheme UnteamsiOS)
 ```
-
-Schemes: `UnteamsMac`, `UnteamsiOS`. `Shared/Sources` is compiled into both apps.
 
 ## Notes
 
-- The web app URL and the list of in-app (Microsoft) domains live in `Shared/Sources/Teams.swift`, along with the bridge script that shims the Notification and Badging APIs.
-- iOS intentionally has no notifications: WKWebView is suspended in the background.
-- Debug builds set `isInspectable`, so Safari's Web Inspector can attach.
+- The Mac app moved from WKWebView to Electron because WebKit throttles page rendering to ~30fps in Low Power Mode, with no per-app opt-out (settings, swizzling and interposing were all tried).
+- Desktop: the Teams URL, Microsoft domains and routing live in `apps/desktop/src/teams.ts`; the page bridge (notification clicks, Badging API, title-bar padding) is in `src/preload.ts`. Electron is removed from the user agent because Teams rejects it.
+- Desktop: don't make Teams' top bar an `-webkit-app-region: drag` area; it swallows clicks on Teams' div-based controls. Window drags from the bar's empty space are driven by pointer events in `preload.ts` and `drag-start`/`drag-move` IPC in `main.ts`.
+- iOS: the web app URL, domains and WebKit configuration are in `apps/ios/App/Teams.swift`. iOS intentionally has no notifications: WKWebView is suspended in the background.
+- App icons live in `apps/ios/Resources`; the desktop app uses `AppIcon.icon` from there.
