@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "start": "tsc && electron .",
     "package": "tsc && electron-builder --mac --dir",
+    "release": "tsc && electron-builder --mac zip dmg --arm64 --publish never",
     "package:debug": "tsc && electron-builder --mac --dir -c.appId=app.unteams.debug.mac -c.productName='Unteams Debug' -c.mac.icon=../ios/Resources/AppIcon-Debug.icon -c.directories.output=release/debug"
   },
   "devDependencies": {
@@ -28,6 +29,11 @@
     "mac": {
       "icon": "../ios/Resources/AppIcon.icon",
       "category": "public.app-category.business",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "notarize": true,
+      "artifactName": "${productName}-${version}.${ext}",
       "extendInfo": {
         "NSCameraUsageDescription": "Teams uses the camera for video calls.",
         "NSMicrophoneUsageDescription": "Teams uses the microphone for calls.",
