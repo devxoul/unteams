@@ -65,6 +65,8 @@ def build_ios(api_key)
   sh("cd #{IOS_ROOT.shellescape} && tuist generate --no-open")
 
   match(type: "appstore", platform: "ios", git_url: MATCH_GIT_URL, app_identifier: [IOS_APP_ID], api_key: api_key)
+  # build_mac's match leaves the Mac app mapped to nil, which gym passes to -exportOptionsPlist and xcodebuild rejects.
+  lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING].delete(MAC_APP_ID)
   update_code_signing_settings(
     path: File.join(IOS_ROOT, "Unteams.xcodeproj"),
     targets: ["UnteamsiOS"],
