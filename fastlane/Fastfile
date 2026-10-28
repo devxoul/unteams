@@ -114,8 +114,11 @@ def build_ios(api_key)
     api_key: api_key,
     changelog: changelog.empty? ? nil : changelog,
     # Beta App Review rejects external submissions without test information and a contact.
-    beta_app_description: BETA_APP_DESCRIPTION,
-    beta_app_feedback_email: BETA_CONTACT[:contact_email],
+    # Keyed by locale rather than beta_app_description: pilot only patches existing localizations with the latter,
+    # and creates one only for a locale named here, so the first external submission doesn't fail as "missing".
+    localized_app_info: {
+      "en-US" => { description: BETA_APP_DESCRIPTION, feedback_email: BETA_CONTACT[:contact_email] }
+    },
     beta_app_review_info: BETA_CONTACT,
     # External groups need a processed build, so wait for it and submit it for beta review.
     distribute_external: true,
