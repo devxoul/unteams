@@ -8,8 +8,7 @@
     "typecheck": "tsc --noEmit",
     "start": "tsc && electron .",
     "package": "tsc && ./scripts/sparkle.sh && electron-builder --mac --dir",
-    "release": "tsc && ./scripts/sparkle.sh && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true",
-    "package:debug": "tsc && ./scripts/sparkle.sh && electron-builder --mac --dir -c.appId=app.unteams.debug.mac -c.productName='Unteams Debug' -c.mac.icon=../ios/Resources/AppIcon-Debug.icon -c.directories.output=release/debug"
+    "release": "tsc && ./scripts/sparkle.sh && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

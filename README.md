@@ -79,7 +79,6 @@ bun install
 cd apps/desktop
 bun run start     # build and run
 bun run package   # build Unteams.app into release/
-bun run package:debug   # build "Unteams Debug" into release/debug/, with its own app ID and icon
 ```
 
 ### iOS
