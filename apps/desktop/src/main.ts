@@ -137,6 +137,7 @@ function makeMenu(): Menu {
       role: "appMenu",
       submenu: [
         { role: "about" },
+        ...(updater ? [{ label: "Check for Updates…", click: () => updater?.checkForUpdates() }] : []),
         { type: "separator" },
         { role: "services" },
         { type: "separator" },
@@ -158,10 +159,6 @@ function makeMenu(): Menu {
       ],
     },
     { role: "windowMenu" },
-    {
-      role: "help",
-      submenu: [{ label: "Check for Updates…", enabled: !!updater, click: () => updater?.checkForUpdates() }],
-    },
   ]);
 }
 
