@@ -119,12 +119,24 @@ function createWindow(): void {
   });
   window = created;
 
-  created.on("moved", () => saveFrame(created));
-  created.on("resized", () => saveFrame(created));
+  // "moved" fires for every step of a drag from Teams' top bar, so the frame is written once the window settles.
+  let saveTimer: NodeJS.Timeout | undefined;
+  const scheduleSave = (): void => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      if (!created.isDestroyed()) saveFrame(created);
+    }, 500);
+  };
+  created.on("moved", scheduleSave);
+  created.on("resized", scheduleSave);
 
   // Closing hides the window so Teams keeps running and notifying in the background.
   created.on("close", (event) => {
-    if (quitting) return;
+    if (quitting) {
+      clearTimeout(saveTimer);
+      saveFrame(created);
+      return;
+    }
     event.preventDefault();
     if (!created.isFullScreen()) return created.hide();
     created.once("leave-full-screen", () => created.hide());
