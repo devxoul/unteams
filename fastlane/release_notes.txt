@@ -1,1 +1,3 @@
 Sign in with your Microsoft work or school account and check that chats, channels and calls work.
+
+New in this build: tapping a file in a chat or channel now opens the share sheet, so you can save it to Files or send it to another app. Please try downloading a few attachments.
