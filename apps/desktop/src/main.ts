@@ -26,6 +26,12 @@ app.whenReady().then(() => {
     if (permission === "notifications") return callback(true);
     callback(isInternal("requestingUrl" in details ? details.requestingUrl : contents.getURL()));
   });
+  // Electron rejects getDisplayMedia() without a handler, so Teams couldn't share the screen. macOS 15 and later show
+  // the system picker, where the user chooses what to share, instead of calling the handler. Earlier versions have no
+  // picker to ask with, so capture is refused rather than handing over a display unasked.
+  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => callback(null), {
+    useSystemPicker: true,
+  });
   // Sparkle updates the packaged app only; running from source has no release bundle to replace.
   if (!isDebug) {
     updater = require(path.join(process.resourcesPath, "sparkle.node"));
