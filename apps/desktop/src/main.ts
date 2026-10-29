@@ -105,9 +105,11 @@ function createWindow(): void {
     event.preventDefault();
     if (target === "browser") void shell.openExternal(url);
   });
-  // Sign-in and some Teams flows use window.open; those get a real window sharing the session.
-  contents.setWindowOpenHandler(({ url }) => {
-    const target = url === "about:blank" ? "app" : route(url);
+  // Sign-in and some Teams flows open sized popups; those get a real window sharing the session. Links that would open
+  // a tab, like the ones clicked in chats, go to the browser even when they point at Microsoft hosts.
+  contents.setWindowOpenHandler(({ url, disposition }) => {
+    let target = url === "about:blank" ? "app" : route(url);
+    if (target === "app" && disposition !== "new-window" && /^https?:/i.test(url)) target = "browser";
     if (target === "browser") void shell.openExternal(url);
     if (target !== "app") return { action: "deny" };
     return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 680 } };
