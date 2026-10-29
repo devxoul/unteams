@@ -32,7 +32,7 @@ let project = Project(
       bundleId: "$(BUNDLE_ID_PREFIX).ios",
       deploymentTargets: .iOS("18.0"),
       infoPlist: .extendingDefault(with: [
-        "CFBundleShortVersionString": "0.1.3",
+        "CFBundleShortVersionString": "0.1.4",
         "CFBundleVersion": .string(Environment.buildNumber.getString(default: "1")),
         "CFBundleDisplayName": "Unteams",
         "UILaunchScreen": [:],
