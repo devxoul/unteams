@@ -14,7 +14,13 @@ struct TeamsView: UIViewRepresentable {
 
   func updateUIView(_ webView: WKWebView, context: Context) {}
 
-  final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+  final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
+    private var downloads: [ObjectIdentifier: URL] = [:]
+    // Finished files wait here until nothing else is being presented or dismissed, then get one share sheet each.
+    private var finishedFiles: [URL] = []
+    private var isDismissingPopup = false
+    private var isSharing = false
+
     func configure(_ webView: WKWebView) {
       webView.navigationDelegate = self
       webView.uiDelegate = self
@@ -35,13 +41,98 @@ struct TeamsView: UIViewRepresentable {
     ) {
       let url = navigationAction.request.url
       switch Teams.route(for: url, linkActivated: navigationAction.navigationType == .linkActivated) {
-      case .app: return decisionHandler(.allow)
+      case .app: return decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)
       case .drop: return decisionHandler(.cancel)
       case .browser: break
       }
       if let url { UIApplication.shared.open(url) }
       decisionHandler(.cancel)
       if webView.url == nil { webView.findViewController()?.dismiss(animated: true) }
+    }
+
+    // Files Teams serves as attachments, or that WebKit can't show, are downloaded and offered in a share sheet.
+    func webView(
+      _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+    ) {
+      let disposition = (navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")
+      let isAttachment = disposition?.lowercased().hasPrefix("attachment") ?? false
+      decisionHandler(isAttachment || !navigationResponse.canShowMIMEType ? .download : .allow)
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+      startDownload(download, in: webView)
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+      startDownload(download, in: webView)
+    }
+
+    private func startDownload(_ download: WKDownload, in webView: WKWebView) {
+      download.delegate = self
+      // A popup opened with window.open only to start a download is left blank, whether it never loaded anything or
+      // still shows its initial about:blank document. webView.url already names the download here, so the committed
+      // page is read from the back-forward list.
+      let shownURL = webView.backForwardList.currentItem?.url
+      guard let popup = webView.findViewController(), popup.presentingViewController != nil,
+        shownURL == nil || shownURL?.absoluteString == "about:blank"
+      else { return }
+      isDismissingPopup = true
+      popup.dismiss(animated: true) { [weak self] in
+        self?.isDismissingPopup = false
+        self?.shareNextFile()
+      }
+    }
+
+    func download(
+      _ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
+      completionHandler: @escaping (URL?) -> Void
+    ) {
+      // Each download gets its own folder, so the file keeps its suggested name.
+      let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+      do {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      } catch {
+        return completionHandler(nil)
+      }
+      let destination = folder.appending(path: suggestedFilename)
+      downloads[ObjectIdentifier(download)] = destination
+      completionHandler(destination)
+    }
+
+    func downloadDidFinish(_ download: WKDownload) {
+      guard let file = downloads.removeValue(forKey: ObjectIdentifier(download)) else { return }
+      finishedFiles.append(file)
+      shareNextFile()
+    }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+      guard let file = downloads.removeValue(forKey: ObjectIdentifier(download)) else { return }
+      try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
+    }
+
+    private func shareNextFile() {
+      guard !isDismissingPopup, !isSharing, !finishedFiles.isEmpty,
+        let presenter = UIApplication.shared.topViewController
+      else { return }
+      // A controller mid-transition (a Teams popup sliding in, say) can't present yet; try again once it settles.
+      if let transition = presenter.transitionCoordinator {
+        transition.animate(alongsideTransition: nil) { [weak self] _ in self?.shareNextFile() }
+        return
+      }
+      let file = finishedFiles.removeFirst()
+      let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+      sheet.popoverPresentationController?.sourceView = presenter.view
+      sheet.popoverPresentationController?.sourceRect = CGRect(
+        x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 0, height: 0)
+      // Called once the sheet is done, whether the file was shared or not; the file is only needed until then.
+      sheet.completionWithItemsHandler = { [weak self] _, _, _, _ in
+        try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
+        self?.isSharing = false
+        self?.shareNextFile()
+      }
+      isSharing = true
+      presenter.present(sheet, animated: true)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
@@ -102,6 +193,13 @@ private let desktopSpoof = #"""
   };
 })();
 """#
+
+private extension UIApplication {
+  var topViewController: UIViewController? {
+    let window = connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+    return sequence(first: window?.rootViewController) { $0?.presentedViewController }.compactMap { $0 }.last
+  }
+}
 
 private extension UIView {
   func findViewController() -> UIViewController? {
