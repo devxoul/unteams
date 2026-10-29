@@ -195,6 +195,12 @@ function makeMenu(): Menu {
         { label: "Reload", accelerator: "CmdOrCtrl+R", click: () => window?.webContents.reload() },
         ...(isDebug ? [{ role: "toggleDevTools" } as const] : []),
         { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        // zoomIn's Cmd+Plus needs Shift on most layouts; browsers also zoom in on Cmd+=.
+        { role: "zoomIn", accelerator: "CmdOrCtrl+=", visible: false },
+        { role: "zoomOut" },
+        { type: "separator" },
         { role: "togglefullscreen" },
       ],
     },
