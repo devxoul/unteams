@@ -33,6 +33,8 @@ jobs:
       APP_STORE_CONNECT_API_KEY_IS_KEY_CONTENT_BASE64: "true"
       # Beta App Review contact phone, kept out of the public repo.
       APP_REVIEW_PHONE_NUMBER: ${{ secrets.APP_REVIEW_PHONE_NUMBER }}
+      # Signs the Mac app update in appcast.xml, which Sparkle verifies before installing.
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
 
     steps:
       # Validate before anything is mutated: the value ends up in git and fastlane commands.
@@ -108,6 +110,7 @@ jobs:
           path: |
             build/fastlane/Unteams-${{ inputs.version }}.zip
             build/fastlane/Unteams-${{ inputs.version }}.dmg
+            build/fastlane/appcast.xml
           if-no-files-found: error
 
       - name: Push commit and tag
@@ -144,4 +147,4 @@ jobs:
           if ! gh release view "$VERSION" >/dev/null 2>&1; then
             gh release create "$VERSION" --verify-tag --title "$VERSION" --generate-notes
           fi
-          gh release upload "$VERSION" "Unteams-$VERSION.zip" "Unteams-$VERSION.dmg" --clobber
+          gh release upload "$VERSION" "Unteams-$VERSION.zip" "Unteams-$VERSION.dmg" appcast.xml --clobber

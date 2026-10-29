@@ -155,4 +155,25 @@ def build_mac(api_key)
   %w[zip dmg].each do |ext|
     FileUtils.cp(File.join(DESKTOP_ROOT, "release/Unteams-#{version}.#{ext}"), File.join(OUTPUT_DIR, "Unteams-#{version}.#{ext}"))
   end
+  generate_appcast(version)
+end
+
+# Writes build/fastlane/appcast.xml for the GitHub Release; the app's feed URL follows the latest release.
+# Signs with SPARKLE_PRIVATE_KEY on CI, or the `app.unteams` keychain item from `generate_keys` locally.
+def generate_appcast(version)
+  archives = File.join(OUTPUT_DIR, "appcast")
+  FileUtils.rm_rf(archives)
+  FileUtils.mkdir_p(archives)
+  FileUtils.cp(File.join(OUTPUT_DIR, "Unteams-#{version}.zip"), archives)
+
+  tool = File.join(DESKTOP_ROOT, "vendor/Sparkle/bin/generate_appcast").shellescape
+  key = ENV["SPARKLE_PRIVATE_KEY"].to_s.empty? ? "--account app.unteams" : "--ed-key-file -"
+  command = [
+    tool, key,
+    "--download-url-prefix", "https://github.com/devxoul/unteams/releases/download/#{version}/",
+    "-o", File.join(OUTPUT_DIR, "appcast.xml").shellescape,
+    archives.shellescape
+  ].join(" ")
+  command = %(printf '%s' "$SPARKLE_PRIVATE_KEY" | #{command}) unless ENV["SPARKLE_PRIVATE_KEY"].to_s.empty?
+  sh(command)
 end
