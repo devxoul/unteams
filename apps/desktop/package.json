@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "start": "tsc && electron .",
+    "start": "tsc && ./scripts/debug-app.sh && 'build/Unteams Debug.app/Contents/MacOS/Electron' .",
     "package": "tsc && ./scripts/sparkle.sh && electron-builder --mac --dir",
     "release": "tsc && ./scripts/sparkle.sh && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true"
   },
