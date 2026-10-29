@@ -52,16 +52,12 @@ enum Teams {
       typealias SetEnabled = @convention(c) (AnyObject, Selector, Bool) -> Void
       unsafeBitCast(method_getImplementation(method), to: SetEnabled.self)(store, selector, false)
     }
-    // Teams only supports browsers it recognizes; the Safari token makes WKWebView pass as Safari.
-    configuration.applicationNameForUserAgent = "Version/18.0 Safari/605.1.15"
     configuration.mediaTypesRequiringUserActionForPlayback = []
     // Microsoft sign-in opens its popup after an async step, which WebKit no longer counts as a user gesture.
     configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
-    #if os(iOS)
     configuration.allowsInlineMediaPlayback = true
     // Teams turns away mobile browsers ("browser version isn't supported"), so present as desktop Safari.
     configuration.defaultWebpagePreferences.preferredContentMode = .desktop
-    #endif
     let controller = WKUserContentController()
     controller.addUserScript(WKUserScript(source: bridgeScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     controller.add(handler, name: messageHandler)

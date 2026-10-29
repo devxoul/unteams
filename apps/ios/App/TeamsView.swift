@@ -18,7 +18,7 @@ struct TeamsView: UIViewRepresentable {
     func configure(_ webView: WKWebView) {
       webView.navigationDelegate = self
       webView.uiDelegate = self
-      // The user agent the Mac app sends; Teams turns away mobile browsers.
+      // Desktop Safari's user agent; Teams turns away mobile browsers.
       webView.customUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5.2 Safari/605.1.15"
       #if DEBUG
