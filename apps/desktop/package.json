@@ -22,6 +22,14 @@
     "directories": {
       "output": "release"
     },
+    "protocols": [
+      {
+        "name": "Microsoft Teams",
+        "schemes": [
+          "msteams"
+        ]
+      }
+    ],
     "files": [
       "dist/**",
       "package.json"
