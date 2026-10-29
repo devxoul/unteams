@@ -133,4 +133,7 @@ function pageScript(): void {
   );
 }
 
+// Teams marks its top bar `app-region: drag`, which makes Electron move the window on presses there, so clicks never
+// reach the search box inside it. Dragging is handled by the pointer events above instead.
+webFrame.insertCSS("* { app-region: no-drag !important; }", { cssOrigin: "user" });
 void webFrame.executeJavaScript(`(${pageScript.toString()})()`);
