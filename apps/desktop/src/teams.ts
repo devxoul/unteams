@@ -53,6 +53,22 @@ export function route(url: string): Route {
   }
 }
 
+/** Turns a link handed to the Teams app, e.g. "msteams:/l/meetup-join/...", into the Teams web URL it stands for. */
+export function webLink(url: string): string | undefined {
+  if (!/^msteams:/i.test(url)) return undefined;
+  // Only a path on Teams' own origin is accepted: anything else, like a nested javascript: or https: URL, would
+  // load whatever page the link names.
+  const origin = "https://teams.microsoft.com";
+  const pathAndQuery = url.slice("msteams:".length).replace(/^\/\/[^/?#]*/, "");
+  if (!pathAndQuery.startsWith("/")) return undefined;
+  try {
+    const web = new URL(pathAndQuery, origin);
+    return web.origin === origin ? web.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Reads the unread count Teams puts in the page title, e.g. "(3) Chat | Microsoft Teams". */
 export function unreadCount(title: string): number {
   const match = /^\((\d+)\)/.exec(title);

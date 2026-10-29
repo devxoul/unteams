@@ -15,12 +15,13 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 
-import { badgeLabel, isInternal, route, TEAMS_URL, unreadCount } from "./teams";
+import { badgeLabel, isInternal, route, TEAMS_URL, unreadCount, webLink } from "./teams";
 
 let window: BrowserWindow | undefined;
 let quitting = false;
 let usesBadgingAPI = false;
 let updater: { start(): void; checkForUpdates(): void } | undefined;
+let launchLink: string | undefined;
 
 // Running from source keeps its own profile, so it can run next to the packaged app without fighting over the lock.
 if (!app.isPackaged) {
@@ -30,6 +31,19 @@ if (!app.isPackaged) {
 const isDebug = !app.isPackaged;
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", showWindow);
+// Meeting and chat links that browsers and calendars hand to the Teams app open here. Registered before launch
+// finishes, so a link that launches the app is caught too.
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  const link = webLink(url);
+  if (!link) return;
+  if (!window) {
+    launchLink = link;
+    return;
+  }
+  void window.loadURL(link);
+  showWindow();
+});
 // Teams sends unrecognized browsers to its "unsupported browser" page; Electron's user agent names Electron and the app.
 app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|[Uu]nteams(Debug)?)\/\S+/g, "");
 
@@ -149,7 +163,7 @@ function createWindow(): void {
   contents.on("render-process-gone", () => contents.reload());
 
   created.once("ready-to-show", () => created.show());
-  void created.loadURL(TEAMS_URL);
+  void created.loadURL(launchLink ?? TEAMS_URL);
 }
 
 function showWindow(): void {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { badgeLabel, isInternal, route, unreadCount } from "./teams";
+import { badgeLabel, isInternal, route, unreadCount, webLink } from "./teams";
 
 describe("isInternal", () => {
   test("accepts Microsoft domains and their subdomains", () => {
@@ -32,6 +32,27 @@ describe("route", () => {
   test("drops other schemes", () => {
     expect(route("msteams:/l/meetup-join/x")).toBe("drop");
     expect(route("javascript:alert(1)")).toBe("drop");
+  });
+});
+
+describe("webLink", () => {
+  test("turns msteams links into Teams web URLs", () => {
+    expect(webLink("msteams:/l/meetup-join/19%3ameeting%40thread.v2/0?context=x")).toBe(
+      "https://teams.microsoft.com/l/meetup-join/19%3ameeting%40thread.v2/0?context=x",
+    );
+    expect(webLink("msteams://teams.microsoft.com/l/chat/0/0?users=user@example.com")).toBe(
+      "https://teams.microsoft.com/l/chat/0/0?users=user@example.com",
+    );
+    expect(webLink("MSTEAMS:/l/app/x")).toBe("https://teams.microsoft.com/l/app/x");
+  });
+
+  test("ignores links that would leave Microsoft or aren't msteams links", () => {
+    expect(webLink("msteams:////example.com/x")).toBeUndefined();
+    expect(webLink("msteams:/\\example.com/x")).toBeUndefined();
+    expect(webLink("msteams:javascript://teams.microsoft.com/%0aalert(1)")).toBeUndefined();
+    expect(webLink("msteams:https://attacker.web.core.windows.net/")).toBeUndefined();
+    expect(webLink("msteams:https://teams.microsoft.com/l/chat")).toBeUndefined();
+    expect(webLink("https://teams.microsoft.com/l/chat")).toBeUndefined();
   });
 });
 
