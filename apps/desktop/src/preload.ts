@@ -48,7 +48,7 @@ function pageScript(): void {
   const inset = 76;
   const barHeight = 48;
   const interactive =
-    "a, button, input, textarea, select, [role=button], [role=link], [role=menuitem], [role=tab], [role=combobox], [role=search], [contenteditable], [tabindex]";
+    "a, button, input, textarea, select, [role=button], [role=link], [role=menuitem], [role=tab], [role=combobox], [role=search], [role=searchbox], [contenteditable], [tabindex]";
   const style = document.createElement("style");
   style.textContent = `[data-unteams-bar]{padding-left:${inset}px!important;box-sizing:border-box!important}`;
   let bar: HTMLElement | null = null;
@@ -107,7 +107,9 @@ function pageScript(): void {
 
   const onEmptyBar = (event: MouseEvent): boolean => {
     const target = event.target as Element | null;
-    return event.button === 0 && event.clientY < barHeight && !!target && !target.closest(interactive);
+    // Teams' search box is a styled div with no interactive role; its pointer or text cursor still marks it.
+    if (!target || target.closest(interactive) || getComputedStyle(target).cursor !== "auto") return false;
+    return event.button === 0 && event.clientY < barHeight;
   };
   window.addEventListener(
     "pointerdown",
