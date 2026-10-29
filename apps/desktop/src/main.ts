@@ -160,7 +160,13 @@ function createWindow(): void {
       popup.close();
     });
   });
-  contents.on("render-process-gone", () => contents.reload());
+  // A crashed page reloads, but not twice within a minute, so a page that crashes while loading can't loop forever.
+  let lastCrash = 0;
+  contents.on("render-process-gone", (_event, details) => {
+    if (details.reason === "clean-exit" || Date.now() - lastCrash < 60_000) return;
+    lastCrash = Date.now();
+    contents.reload();
+  });
 
   created.once("ready-to-show", () => created.show());
   void created.loadURL(launchLink ?? TEAMS_URL);
