@@ -8,6 +8,7 @@ import { badgeLabel, isInternal, route, TEAMS_URL, unreadCount } from "./teams";
 let window: BrowserWindow | undefined;
 let quitting = false;
 let usesBadgingAPI = false;
+let updater: { start(): void; checkForUpdates(): void } | undefined;
 
 // Running from source keeps its own profile, so it can run next to the packaged app without fighting over the lock.
 // Packaged builds take their name and profile from productName ("Unteams" or "Unteams Debug").
@@ -28,6 +29,11 @@ app.whenReady().then(() => {
     if (permission === "notifications") return callback(true);
     callback(isInternal("requestingUrl" in details ? details.requestingUrl : contents.getURL()));
   });
+  // Sparkle updates the release build only: Debug builds have their own bundle ID and would be replaced by a release.
+  if (!isDebug) {
+    updater = require(path.join(process.resourcesPath, "sparkle.node"));
+    updater?.start();
+  }
   Menu.setApplicationMenu(makeMenu());
   createWindow();
 });
@@ -130,7 +136,21 @@ function showWindow(): void {
 
 function makeMenu(): Menu {
   return Menu.buildFromTemplate([
-    { role: "appMenu" },
+    {
+      role: "appMenu",
+      submenu: [
+        { role: "about" },
+        ...(updater ? [{ label: "Check for Updates…", click: () => updater?.checkForUpdates() }] : []),
+        { type: "separator" },
+        { role: "services" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
     { role: "editMenu" },
     {
       label: "View",
