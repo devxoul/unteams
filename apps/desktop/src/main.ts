@@ -19,7 +19,7 @@ const isDebug = !app.isPackaged;
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", showWindow);
 // Teams sends unrecognized browsers to its "unsupported browser" page; Electron's user agent names Electron and the app.
-app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|unteams|Unteams)\/\S+/g, "");
+app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|[Uu]nteams(Debug)?)\/\S+/g, "");
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
