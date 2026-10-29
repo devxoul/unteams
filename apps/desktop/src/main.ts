@@ -11,25 +11,22 @@ let usesBadgingAPI = false;
 let updater: { start(): void; checkForUpdates(): void } | undefined;
 
 // Running from source keeps its own profile, so it can run next to the packaged app without fighting over the lock.
-// Packaged builds take their name and profile from productName ("Unteams" or "Unteams Debug").
 if (!app.isPackaged) {
-  app.setName("Unteams");
-  app.setPath("userData", path.join(app.getPath("appData"), "Unteams Dev"));
+  app.setName("Unteams Debug");
+  app.setPath("userData", path.join(app.getPath("appData"), "Unteams Debug"));
 }
-const isDebug = !app.isPackaged || app.getName().endsWith("Debug");
+const isDebug = !app.isPackaged;
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", showWindow);
 // Teams sends unrecognized browsers to its "unsupported browser" page; Electron's user agent names Electron and the app.
 app.userAgentFallback = app.userAgentFallback.replace(/ (Electron|unteams|Unteams)\/\S+/g, "");
 
 app.whenReady().then(() => {
-  // From source the app runs inside Electron's own bundle, which would show Electron's icon in the Dock.
-  if (!app.isPackaged) app.dock?.setIcon(path.join(__dirname, "../../ios/Resources/AppIcon.icon/Assets/unteams.png"));
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
     if (permission === "notifications") return callback(true);
     callback(isInternal("requestingUrl" in details ? details.requestingUrl : contents.getURL()));
   });
-  // Sparkle updates the release build only: Debug builds have their own bundle ID and would be replaced by a release.
+  // Sparkle updates the packaged app only; running from source has no release bundle to replace.
   if (!isDebug) {
     updater = require(path.join(process.resourcesPath, "sparkle.node"));
     updater?.start();
