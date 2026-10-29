@@ -1,5 +1,17 @@
 // Unteams on Chromium: WebKit pins pages to ~30fps in Low Power Mode, which makes Teams sluggish on battery.
-import { app, BrowserWindow, ipcMain, Menu, screen, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  type ContextMenuParams,
+  ipcMain,
+  Menu,
+  type MenuItemConstructorOptions,
+  screen,
+  session,
+  shell,
+  type WebContents,
+} from "electron";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -47,6 +59,12 @@ app.on("before-quit", () => {
   quitting = true;
 });
 app.on("window-all-closed", () => {});
+// Electron shows no context menu of its own, so right-clicks in Teams and its popups would do nothing.
+app.on("web-contents-created", (_event, contents) => {
+  contents.on("context-menu", (_menuEvent, params) => {
+    contextMenu(contents, params).popup({ window: BrowserWindow.fromWebContents(contents) ?? undefined });
+  });
+});
 
 ipcMain.on("badge", (_event, count: number) => {
   usesBadgingAPI = true;
@@ -168,6 +186,46 @@ function makeMenu(): Menu {
     },
     { role: "windowMenu" },
   ]);
+}
+
+function contextMenu(contents: WebContents, params: ContextMenuParams): Menu {
+  const { editFlags, isEditable, linkURL, misspelledWord } = params;
+  const groups: MenuItemConstructorOptions[][] = [
+    [
+      ...params.dictionarySuggestions.map((word) => ({ label: word, click: () => contents.replaceMisspelling(word) })),
+      ...(misspelledWord
+        ? [
+            {
+              label: "Learn Spelling",
+              click: () => contents.session.addWordToSpellCheckerDictionary(misspelledWord),
+            },
+          ]
+        : []),
+    ],
+    linkURL && route(linkURL) !== "drop"
+      ? [
+          { label: "Open Link in Browser", click: () => void shell.openExternal(linkURL) },
+          { label: "Copy Link", click: () => clipboard.writeText(linkURL) },
+        ]
+      : [],
+    params.mediaType === "image"
+      ? [{ label: "Copy Image", click: () => contents.copyImageAt(params.x, params.y) }]
+      : [],
+    isEditable
+      ? [
+          { role: "cut", enabled: editFlags.canCut },
+          { role: "copy", enabled: editFlags.canCopy },
+          { role: "paste", enabled: editFlags.canPaste },
+          { role: "selectAll", enabled: editFlags.canSelectAll },
+        ]
+      : editFlags.canCopy
+        ? [{ role: "copy" }]
+        : [],
+  ];
+  const items = groups
+    .filter((group) => group.length > 0)
+    .flatMap((group, index) => (index > 0 ? [{ type: "separator" } as const, ...group] : group));
+  return Menu.buildFromTemplate(items);
 }
 
 type Frame = { x?: number; y?: number; width: number; height: number };
