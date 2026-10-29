@@ -7,14 +7,15 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "tsc && electron .",
-    "package": "tsc && electron-builder --mac --dir",
-    "release": "tsc && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true",
-    "package:debug": "tsc && electron-builder --mac --dir -c.appId=app.unteams.debug.mac -c.productName='Unteams Debug' -c.mac.icon=../ios/Resources/AppIcon-Debug.icon -c.directories.output=release/debug"
+    "package": "tsc && ./scripts/sparkle.sh && electron-builder --mac --dir",
+    "release": "tsc && ./scripts/sparkle.sh && electron-builder --mac zip dmg --arm64 --publish never -c.forceCodeSigning=true",
+    "package:debug": "tsc && ./scripts/sparkle.sh && electron-builder --mac --dir -c.appId=app.unteams.debug.mac -c.productName='Unteams Debug' -c.mac.icon=../ios/Resources/AppIcon-Debug.icon -c.directories.output=release/debug"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "electron": "^45.1.0",
     "electron-builder": "^26.18.0",
+    "node-api-headers": "^1.9.0",
     "typescript": "^7.0.2"
   },
   "build": {
@@ -34,7 +35,22 @@
       "entitlementsInherit": "entitlements.mac.plist",
       "notarize": true,
       "artifactName": "${productName}-${version}.${ext}",
+      "extraFiles": [
+        {
+          "from": "vendor/Sparkle/Sparkle.framework",
+          "to": "Frameworks/Sparkle.framework"
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "build/sparkle.node",
+          "to": "sparkle.node"
+        }
+      ],
       "extendInfo": {
+        "SUFeedURL": "https://github.com/devxoul/unteams/releases/latest/download/appcast.xml",
+        "SUPublicEDKey": "3kpAPwNiTckX7dF+nACXsFVZj7J5QQWFMnQDv5fvv3s=",
+        "SUEnableAutomaticChecks": true,
         "NSCameraUsageDescription": "Teams uses the camera for video calls.",
         "NSMicrophoneUsageDescription": "Teams uses the microphone for calls.",
         "NSBluetoothAlwaysUsageDescription": "Microsoft sign-in uses Bluetooth for passkeys and security keys."
